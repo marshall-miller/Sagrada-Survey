@@ -93,10 +93,11 @@ textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8p
 <div class="completion-code">SAGRADA2026</div>
 <p style="text-align:center; margin-top:12px;">Please copy this code and paste it back in Prolific to confirm your submission.</p>
 <br>
-<p><strong>Your responses have been recorded below.</strong> Please also copy the response data below and paste it into the Prolific submission form as a backup:</p>
+<p style="color: #d32f2f; font-weight: bold; font-size: 1.1em;">IMPORTANT: Please copy your response data below and paste it into Prolific's comment box before submitting your completion code. This ensures we receive your detailed responses.</p>
 <div id="results-data"></div>
 <br>
 <button class="next-btn" onclick="copyResults()">Copy Response Data</button>
+<span id="copy-status" style="margin-left: 12px; font-weight: 600;"></span>
 <div style="clear:both"></div>
 </div>
 </div>
@@ -158,7 +159,10 @@ function nextPair() {
         justification: document.getElementById('justification').value.trim(),
         time_seconds: Math.round(elapsed),
     });
-    
+
+    // Save progress after each response
+    if (typeof saveProgress === 'function') saveProgress();
+
     if (currentPair + 1 < PAIRS.length) {
         showPair(currentPair + 1);
     } else {
@@ -169,10 +173,10 @@ function nextPair() {
 function finishStudy() {
     document.getElementById('study-page').classList.add('hidden');
     document.getElementById('completion-page').classList.remove('hidden');
-    
+
     const totalTime = Math.round((Date.now() - startTime) / 1000);
     const correct = responses.filter(r => r.is_correct).length;
-    
+
     const resultObj = {
         prolific_pid: getProlificPID(),
         study_id: getStudyID(),
@@ -181,16 +185,55 @@ function finishStudy() {
         correct: correct,
         accuracy: (correct / PAIRS.length).toFixed(4),
         total_time_seconds: totalTime,
+        completed_at: new Date().toISOString(),
         responses: responses,
     };
-    
-    document.getElementById('results-data').textContent = JSON.stringify(resultObj);
+
+    const resultJson = JSON.stringify(resultObj);
+    document.getElementById('results-data').textContent = resultJson;
+
+    // Save to localStorage as backup
+    try {
+        const key = 'sagrada_survey_' + resultObj.prolific_pid + '_' + Date.now();
+        localStorage.setItem(key, resultJson);
+        localStorage.setItem('sagrada_survey_latest', resultJson);
+    } catch(e) {}
+
+    // Auto-POST to data collection endpoint if configured
+    const ENDPOINT = window.SAGRADA_DATA_ENDPOINT || '';
+    if (ENDPOINT) {
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: resultJson,
+            mode: 'no-cors',
+        }).catch(function(err) { console.log('Data POST failed:', err); });
+    }
+
+    // Auto-copy to clipboard
+    try {
+        navigator.clipboard.writeText(resultJson);
+        document.getElementById('copy-status').textContent = '(auto-copied to clipboard)';
+    } catch(e) {}
+}
+
+// Also save progress incrementally to localStorage
+function saveProgress() {
+    try {
+        localStorage.setItem('sagrada_survey_progress', JSON.stringify({
+            prolific_pid: getProlificPID(),
+            currentPair: currentPair,
+            responses: responses,
+            startTime: startTime,
+        }));
+    } catch(e) {}
 }
 
 function copyResults() {
     const text = document.getElementById('results-data').textContent;
     navigator.clipboard.writeText(text).then(() => {
-        alert('Response data copied to clipboard!');
+        document.getElementById('copy-status').textContent = 'Copied!';
+        document.getElementById('copy-status').style.color = '#4CAF50';
     });
 }
 
