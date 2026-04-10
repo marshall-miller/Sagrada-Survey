@@ -199,8 +199,8 @@ function finishStudy() {
         localStorage.setItem('sagrada_survey_latest', resultJson);
     } catch(e) {}
 
-    // Auto-POST to data collection endpoint if configured
-    const ENDPOINT = window.SAGRADA_DATA_ENDPOINT || '';
+    // Auto-POST to data collection endpoint
+    const ENDPOINT = window.SAGRADA_DATA_ENDPOINT || 'https://script.google.com/macros/s/AKfycbyLIuOTfyUgwjDiaAB7dwqn_A3je_SHFjyW14X4XlaVOrUouJs8bssQ-sPoC3sCvqGD/exec';
     if (ENDPOINT) {
         fetch(ENDPOINT, {
             method: 'POST',
